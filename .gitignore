@@ -1,0 +1,26 @@
+# Documentos
+*.pdf
+*.png
+*.tex
+*.bib
+
+# Backups
+*_backup.py
+*_backup.html
+static_backup/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+env/
+*.egg-info/
+
+# JS heredado (reemplazado por models.py)
+static/models.js
+
+# Herramientas locales
+.claude/
+.rbxsync-trash/
