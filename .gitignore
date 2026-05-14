@@ -3,6 +3,18 @@
 *.png
 *.tex
 *.bib
+*.doc
+*.docx
+~$*.docx
+
+# Salida LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.synctex*
 
 # Backups
 *_backup.py
@@ -24,3 +36,4 @@ static/models.js
 # Herramientas locales
 .claude/
 .rbxsync-trash/
+workflows/
