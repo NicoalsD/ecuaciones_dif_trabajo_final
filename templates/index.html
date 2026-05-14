@@ -1,30 +1,493 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Ecuaciones — Simulador de EDO</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDO-LIVE // Blooper-Sim</title>
+    <meta name="description" content="Laboratorio interactivo de ecuaciones diferenciales. Universidad Cooperativa de Colombia.">
 
-<script>
-  window.MathJax = {
-    tex: { inlineMath: [["\\(","\\)"]], displayMath: [["\\[","\\]"]] },
-    svg: { fontCache: "global" },
-    options: { skipHtmlTags: ["script","noscript","style","textarea","pre","code"] }
-  };
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&family=JetBrains+Mono:wght@300;400;500;700;800&family=VT323&display=swap" rel="stylesheet">
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
-<body>
-<div id="root"></div>
-<script type="text/babel" src="{{ url_for('static', filename='app.jsx') }}"></script>
+<body class="stage-virus-active">
+
+<!-- ════════════════════════════════════════════════════════════════════
+     TOP BAR · Navegacion y telemetria global
+     ════════════════════════════════════════════════════════════════════ -->
+<header class="top-bar">
+    <div class="brand">
+        <span class="brand-mark">EDO</span><span class="brand-mark brand-mark-live">·LIVE</span>
+        <span class="brand-meta">// blooper-sim · laboratorio EDO</span>
+    </div>
+    <nav class="scenario-tabs" role="tablist">
+        <button class="scenario-tab active" data-scenario="virus" role="tab" aria-selected="true">
+            <span class="tab-glyph tab-glyph-virus" aria-hidden="true">
+                <svg viewBox="0 0 40 40">
+                    <ellipse cx="20" cy="26" rx="13" ry="9" fill="currentColor" opacity="0.85"/>
+                    <ellipse cx="20" cy="14" rx="11" ry="8" fill="currentColor"/>
+                    <circle cx="15" cy="13" r="2.2" fill="#0a0d1a"/>
+                    <circle cx="25" cy="13" r="2.2" fill="#0a0d1a"/>
+                    <path d="M6 28 q3 4 6 0 q3 4 6 0 q3 4 6 0 q3 4 6 0 q3 4 6 0" fill="none" stroke="currentColor" stroke-width="1.6"/>
+                </svg>
+            </span>
+            <span class="tab-body">
+                <span class="tab-title">VIRUS BLOOPER</span>
+                <small class="tab-sub">EDO 1.er orden · dP/dt = k·P</small>
+            </span>
+        </button>
+        <button class="scenario-tab" data-scenario="cpu" role="tab" aria-selected="false">
+            <span class="tab-glyph tab-glyph-cpu" aria-hidden="true">
+                <svg viewBox="0 0 40 40">
+                    <rect x="8" y="8" width="24" height="24" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                    <rect x="14" y="14" width="12" height="12" fill="currentColor" opacity="0.5"/>
+                    <g stroke="currentColor" stroke-width="1.6">
+                        <path d="M14 4v4M20 4v4M26 4v4M14 32v4M20 32v4M26 32v4"/>
+                        <path d="M4 14h4M4 20h4M4 26h4M32 14h4M32 20h4M32 26h4"/>
+                    </g>
+                </svg>
+            </span>
+            <span class="tab-body">
+                <span class="tab-title">CPU OVERLOAD</span>
+                <small class="tab-sub">EDO 2.do orden · y″ − 5y′ + 6y = 0</small>
+            </span>
+        </button>
+    </nav>
+    <div class="header-right">
+        <span class="status-pill" id="status-pill">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">EN ESPERA</span>
+        </span>
+        <span class="time-pill" id="time-pill">t = 0.000 s</span>
+    </div>
+</header>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     ESCENARIO 1 · VIRUS BLOOPER · Mario-Kart race
+     ════════════════════════════════════════════════════════════════════ -->
+<section class="sim-stage stage-virus active" data-stage="virus">
+    <div class="bg-stars" aria-hidden="true"></div>
+    <div class="bg-grid bg-grid-virus" aria-hidden="true"></div>
+
+    <div class="virus-grid">
+
+        <!-- ── Telemetria izquierda ─────────────────────────────────── -->
+        <aside class="panel panel-virus panel-telemetry">
+            <div class="panel-head">
+                <span class="panel-bar"></span>
+                <h2>TELEMETRIA · VECTOR VIRAL</h2>
+                <span class="panel-tag">LIVE</span>
+            </div>
+
+            <div class="metric-card metric-major">
+                <div class="metric-card-head">
+                    <span class="metric-label">P(t) · POBLACION INFECTADA</span>
+                    <span class="metric-chip" id="v-chip">CALMA</span>
+                </div>
+                <div class="metric-big">
+                    <span class="metric-num" id="v-pnum">0.000</span>
+                    <span class="metric-den">/ 12</span>
+                </div>
+                <div class="metric-bar">
+                    <div class="metric-bar-fill metric-bar-virus" id="v-bar"></div>
+                    <div class="metric-bar-ticks">
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-row metric-row-3">
+                <div class="metric-mini">
+                    <span class="mm-label">INFECTADOS</span>
+                    <span class="mm-val" id="v-count">1 / 12</span>
+                </div>
+                <div class="metric-mini">
+                    <span class="mm-label">dP/dt</span>
+                    <span class="mm-val" id="v-rate">0.55</span>
+                </div>
+                <div class="metric-mini">
+                    <span class="mm-label">k</span>
+                    <span class="mm-val mm-val-mono">0.5493</span>
+                </div>
+            </div>
+
+            <div class="formula-card">
+                <div class="formula-card-head">
+                    <span class="panel-bar panel-bar-thin"></span>
+                    <h3>MODELO EXACTO</h3>
+                </div>
+                <div class="formula-line">
+                    <span class="formula-key">EDO</span>
+                    <span class="formula-val">dP/dt = k · P</span>
+                </div>
+                <div class="formula-line">
+                    <span class="formula-key">P(0)</span>
+                    <span class="formula-val">1</span>
+                </div>
+                <div class="formula-line">
+                    <span class="formula-key">P(2)</span>
+                    <span class="formula-val">3</span>
+                </div>
+                <div class="formula-line formula-highlight">
+                    <span class="formula-key">k</span>
+                    <span class="formula-val">ln(3)/2 ≈ 0.5493</span>
+                </div>
+                <div class="formula-line formula-highlight">
+                    <span class="formula-key">P(t)</span>
+                    <span class="formula-val">3^(t/2)</span>
+                </div>
+                <div class="formula-line">
+                    <span class="formula-key">t<sub>12</sub></span>
+                    <span class="formula-val">2 ln(12) / ln(3) ≈ 4.524 s</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="controls-row">
+                    <button class="ctrl ctrl-primary" id="v-play">
+                        <span class="ctrl-icon">▶</span><span>INICIAR</span>
+                    </button>
+                    <button class="ctrl ctrl-secondary" id="v-pause">
+                        <span class="ctrl-icon">❚❚</span>
+                    </button>
+                    <button class="ctrl ctrl-ghost" id="v-reset">
+                        <span class="ctrl-icon">⟲</span>
+                    </button>
+                </div>
+                <div class="speed-row">
+                    <span class="speed-label">VELOCIDAD ×<span id="v-speed-val">1.0</span></span>
+                    <input type="range" id="v-speed" class="speed-slider" min="0.25" max="4" step="0.25" value="1">
+                </div>
+            </div>
+        </aside>
+
+        <!-- ── Centro · pista de carreras ───────────────────────────── -->
+        <div class="panel panel-virus panel-race">
+            <div class="panel-head">
+                <span class="panel-bar"></span>
+                <h2>CIRCUITO · BLOOPER GRAND PRIX</h2>
+                <span class="panel-tag" id="v-race-tag">VUELTA 1 / 1</span>
+            </div>
+
+            <div class="race-area" id="race-area">
+                <canvas id="race-canvas" width="900" height="520"></canvas>
+                <div class="blooper-mascot" aria-hidden="true">
+                    <svg viewBox="0 0 100 100">
+                        <ellipse cx="50" cy="40" rx="32" ry="28" fill="#dfe6ff"/>
+                        <ellipse cx="50" cy="40" rx="32" ry="28" fill="none" stroke="#2a2456" stroke-width="2"/>
+                        <ellipse cx="40" cy="38" rx="5" ry="7" fill="#2a2456"/>
+                        <ellipse cx="60" cy="38" rx="5" ry="7" fill="#2a2456"/>
+                        <ellipse cx="41" cy="36" rx="1.6" ry="2.2" fill="#fff"/>
+                        <ellipse cx="61" cy="36" rx="1.6" ry="2.2" fill="#fff"/>
+                        <path d="M30 60 q5 8 0 18" fill="none" stroke="#2a2456" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M40 65 q3 10 -3 22" fill="none" stroke="#2a2456" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M50 67 q0 12 0 24" fill="none" stroke="#2a2456" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M60 65 q-3 10 3 22" fill="none" stroke="#2a2456" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M70 60 q-5 8 0 18" fill="none" stroke="#2a2456" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                    <span class="mascot-label">BLOOPER · vector</span>
+                </div>
+
+                <div class="race-hud" id="race-hud">
+                    <div class="hud-row hud-row-top">
+                        <span class="hud-pill">P(t) <strong id="hud-p">1.000</strong></span>
+                        <span class="hud-pill hud-pill-accent">INFECTADOS <strong id="hud-infected">1 / 12</strong></span>
+                        <span class="hud-pill">t <strong id="hud-t">0.000 s</strong></span>
+                    </div>
+                </div>
+
+                <div class="race-overlay race-overlay-finish" id="race-finish-overlay">
+                    <div class="finish-banner">
+                        <span class="finish-tag">RED COMPROMETIDA</span>
+                        <span class="finish-msg">12 / 12 jugadores infectados</span>
+                        <span class="finish-time">t = <strong id="finish-time-val">4.524</strong> s</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="race-curve">
+                <div class="curve-head">
+                    <span class="curve-tag">P(t) · CURVA EXPONENCIAL</span>
+                    <span class="curve-rule"></span>
+                    <span class="curve-tag curve-tag-right">3^(t/2)</span>
+                </div>
+                <canvas id="virus-chart" width="900" height="120"></canvas>
+            </div>
+        </div>
+
+        <!-- ── Consola derecha ──────────────────────────────────────── -->
+        <aside class="panel panel-virus panel-console">
+            <div class="panel-head">
+                <span class="panel-bar"></span>
+                <h2>CRONOGRAMA DE INFECCION</h2>
+                <span class="panel-tag">SCHEDULE</span>
+            </div>
+
+            <ol class="schedule-list" id="v-schedule"></ol>
+
+            <div class="console-window">
+                <div class="console-bar">
+                    <span class="cdot cdot-r"></span>
+                    <span class="cdot cdot-y"></span>
+                    <span class="cdot cdot-g"></span>
+                    <span class="console-title">edo-live ~ virus.sh</span>
+                </div>
+                <div class="console-body" id="v-console" aria-live="polite"></div>
+            </div>
+        </aside>
+
+    </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     ESCENARIO 2 · CPU OVERLOAD · Animated server rack
+     ════════════════════════════════════════════════════════════════════ -->
+<section class="sim-stage stage-cpu" data-stage="cpu">
+    <div class="bg-stars" aria-hidden="true"></div>
+    <div class="bg-grid bg-grid-cpu" aria-hidden="true"></div>
+    <div class="bg-glow-cpu" id="bg-glow-cpu" aria-hidden="true"></div>
+
+    <div class="cpu-grid">
+
+        <!-- ── Telemetria izquierda ─────────────────────────────────── -->
+        <aside class="panel panel-cpu panel-telemetry">
+            <div class="panel-head">
+                <span class="panel-bar"></span>
+                <h2>TELEMETRIA · NODE-PRIME</h2>
+                <span class="panel-tag" id="c-classification">INESTABLE</span>
+            </div>
+
+            <div class="metric-card metric-major metric-card-cpu">
+                <div class="metric-card-head">
+                    <span class="metric-label">CARGA CPU · |y(t)|</span>
+                    <span class="metric-chip metric-chip-cpu" id="c-chip">NOMINAL</span>
+                </div>
+                <div class="metric-big">
+                    <span class="metric-num" id="c-pct">40.0</span>
+                    <span class="metric-den">%</span>
+                </div>
+                <div class="cpu-bar-wrap">
+                    <div class="cpu-bar-fill" id="c-bar"></div>
+                    <div class="cpu-bar-grid"></div>
+                </div>
+            </div>
+
+            <div class="metric-row metric-row-2">
+                <div class="metric-mini">
+                    <span class="mm-label">y(t)</span>
+                    <span class="mm-val mm-val-mono" id="c-y">+40.000</span>
+                </div>
+                <div class="metric-mini">
+                    <span class="mm-label">y'(t)</span>
+                    <span class="mm-val mm-val-mono" id="c-yp">+10.000</span>
+                </div>
+            </div>
+
+            <div class="metric-row metric-row-2">
+                <div class="metric-mini metric-mini-warn">
+                    <span class="mm-label">TEMP</span>
+                    <span class="mm-val" id="c-temp">54.0 °C</span>
+                </div>
+                <div class="metric-mini">
+                    <span class="mm-label">VENTILADOR</span>
+                    <span class="mm-val" id="c-fan">2160 RPM</span>
+                </div>
+            </div>
+
+            <div class="metric-row metric-row-2">
+                <div class="metric-mini">
+                    <span class="mm-label">RAM</span>
+                    <span class="mm-val" id="c-ram">63.4 %</span>
+                </div>
+                <div class="metric-mini">
+                    <span class="mm-label">PROCESOS</span>
+                    <span class="mm-val" id="c-proc">49</span>
+                </div>
+            </div>
+
+            <div class="formula-card formula-card-cpu">
+                <div class="formula-card-head">
+                    <span class="panel-bar panel-bar-thin"></span>
+                    <h3>MODELO EXACTO · PROBLEMA 6</h3>
+                </div>
+                <div class="formula-line">
+                    <span class="formula-key">EDO</span>
+                    <span class="formula-val">y″ − 5y′ + 6y = 0</span>
+                </div>
+                <div class="formula-line">
+                    <span class="formula-key">y(0)</span>
+                    <span class="formula-val">40 % CPU</span>
+                </div>
+                <div class="formula-line">
+                    <span class="formula-key">y′(0)</span>
+                    <span class="formula-val">10 %/h</span>
+                </div>
+                <div class="formula-line">
+                    <span class="formula-key">aux</span>
+                    <span class="formula-val">m² − 5m + 6 = 0</span>
+                </div>
+                <div class="formula-line formula-highlight">
+                    <span class="formula-key">raices</span>
+                    <span class="formula-val">m₁ = 2 · m₂ = 3</span>
+                </div>
+                <div class="formula-line">
+                    <span class="formula-key">C₁ · C₂</span>
+                    <span class="formula-val">+110 · −70</span>
+                </div>
+                <div class="formula-line formula-highlight">
+                    <span class="formula-key">y(t)</span>
+                    <span class="formula-val">110 e²ᵗ − 70 e³ᵗ</span>
+                </div>
+                <div class="formula-line">
+                    <span class="formula-key">y = 0</span>
+                    <span class="formula-val">t = ln(11/7) ≈ 0.452 h</span>
+                </div>
+                <div class="formula-line formula-highlight formula-warn">
+                    <span class="formula-key">tipo</span>
+                    <span class="formula-val">INESTABLE · y → −∞</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="controls-row">
+                    <button class="ctrl ctrl-primary ctrl-primary-cpu" id="c-play">
+                        <span class="ctrl-icon">▶</span><span>INYECTAR CARGA</span>
+                    </button>
+                    <button class="ctrl ctrl-secondary" id="c-pause">
+                        <span class="ctrl-icon">❚❚</span>
+                    </button>
+                    <button class="ctrl ctrl-ghost" id="c-reset">
+                        <span class="ctrl-icon">⟲</span>
+                    </button>
+                </div>
+                <div class="speed-row">
+                    <span class="speed-label">VELOCIDAD ×<span id="c-speed-val">0.15</span></span>
+                    <input type="range" id="c-speed" class="speed-slider speed-slider-cpu" min="0.05" max="0.50" step="0.05" value="0.15">
+                </div>
+            </div>
+        </aside>
+
+        <!-- ── Centro · servidor animado ─────────────────────────────── -->
+        <div class="panel panel-cpu panel-server">
+            <div class="panel-head">
+                <span class="panel-bar"></span>
+                <h2>RACK-01 · NODE-PRIME</h2>
+                <span class="panel-tag" id="c-status-tag">▮ IDLE</span>
+            </div>
+
+            <div class="server-area" id="server-area">
+
+                <div class="server-chassis" id="server-chassis">
+                    <!-- panel frontal -->
+                    <div class="chassis-rim chassis-rim-top"></div>
+
+                    <!-- pantalla -->
+                    <div class="server-screen" id="server-screen">
+                        <div class="screen-stripe">
+                            <span>NODE-PRIME</span>
+                            <span class="screen-cpu" id="screen-cpu">40.0%</span>
+                        </div>
+                        <div class="screen-bars" id="screen-bars"></div>
+                        <div class="screen-foot">
+                            <span>y(t) = 110 e²ᵗ − 70 e³ᵗ</span>
+                            <span class="screen-status" id="screen-status">NOMINAL</span>
+                        </div>
+                        <div class="screen-glitch" id="screen-glitch"></div>
+                        <div class="screen-overload" id="screen-overload">
+                            <span class="overload-title">SERVER OVERLOAD</span>
+                            <span class="overload-sub">|y(t)| ≥ 100 · sistema inestable</span>
+                        </div>
+                    </div>
+
+                    <!-- modulos memoria / cpu sockets -->
+                    <div class="chassis-sockets">
+                        <div class="socket" id="socket-cpu">
+                            <span class="socket-label">CPU</span>
+                            <div class="socket-die" id="socket-die"></div>
+                        </div>
+                        <div class="dimm-slots" id="dimm-slots"></div>
+                    </div>
+
+                    <!-- ventiladores -->
+                    <div class="chassis-fans">
+                        <div class="fan" id="fan-1"><div class="fan-blades"></div></div>
+                        <div class="fan" id="fan-2"><div class="fan-blades"></div></div>
+                        <div class="fan" id="fan-3"><div class="fan-blades"></div></div>
+                    </div>
+
+                    <!-- leds y puertos -->
+                    <div class="chassis-leds" id="chassis-leds">
+                        <span class="led-row-label">STATUS</span>
+                    </div>
+
+                    <div class="chassis-rim chassis-rim-bot"></div>
+                </div>
+
+                <!-- nube de calor -->
+                <div class="heat-shimmer" id="heat-shimmer" aria-hidden="true"></div>
+            </div>
+
+            <div class="server-scope">
+                <div class="curve-head">
+                    <span class="curve-tag">USO DE CPU · SISTEMA INESTABLE</span>
+                    <span class="curve-rule"></span>
+                    <span class="curve-tag curve-tag-right">y(t) = 110 e²ᵗ − 70 e³ᵗ · t en horas</span>
+                </div>
+                <canvas id="cpu-chart" width="900" height="160"></canvas>
+            </div>
+        </div>
+
+        <!-- ── Consola derecha · logs ───────────────────────────────── -->
+        <aside class="panel panel-cpu panel-console">
+            <div class="panel-head">
+                <span class="panel-bar"></span>
+                <h2>SYSLOG · /var/log/edo</h2>
+                <span class="panel-tag panel-tag-warn" id="c-alert-tag">OK</span>
+            </div>
+
+            <div class="warning-card" id="c-warning-card">
+                <div class="warning-head">⚠ ALERTA CRITICA</div>
+                <div class="warning-msg" id="c-warning-msg">|y(t)| superando el umbral de operacion</div>
+                <div class="warning-foot">y(t) → −∞ · raices reales positivas → INESTABLE</div>
+            </div>
+
+            <div class="console-window console-window-cpu">
+                <div class="console-bar">
+                    <span class="cdot cdot-r"></span>
+                    <span class="cdot cdot-y"></span>
+                    <span class="cdot cdot-g"></span>
+                    <span class="console-title">edo-live ~ sysctl --tail</span>
+                </div>
+                <div class="console-body" id="c-console" aria-live="polite"></div>
+            </div>
+
+            <div class="predict-card">
+                <div class="predict-head">PREDICCION · |y(t)| = 100</div>
+                <div class="predict-time" id="c-predict">— h</div>
+                <div class="predict-sub">colapso del nodo</div>
+            </div>
+        </aside>
+
+    </div>
+</section>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     FOOTER
+     ════════════════════════════════════════════════════════════════════ -->
+<footer class="bottom-strip">
+    <span>EDO-LIVE / BLOOPER-SIM · trabajo final 2026</span>
+    <span>universidad cooperativa de colombia · ingenieria de software</span>
+    <span id="footer-build">▮ build 2026.05 · python · flask · canvas2d</span>
+</footer>
+
+<script src="{{ url_for('static', filename='js/simulation.js') }}"></script>
 </body>
 </html>
